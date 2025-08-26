@@ -1,0 +1,32 @@
+I understand. You have selected the README content for the Image Transformer Canvas and are requesting a `.gitignore` file for it.
+
+Here is a `.gitignore` file tailored for a project like this, considering the presence of a `.vscode` directory and common dependencies.
+
+```
+# Gitignore for a client-side web project
+
+# Dependencies
+/node_modules
+
+# Editor and IDE configurations
+.vscode/
+
+# Build artifacts
+/dist
+/build
+/out
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Misc files
+.env
+.env.local
+.DS_Store
+```

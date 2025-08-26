@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Transformer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles for a clean, luxurious look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f8f8; /* Very light gray for a clean feel */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            color: #262626; /* Dark charcoal text */
+        }
+        .app-card {
+            max-width: 1000px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.05); /* Subtle shadow for depth */
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* Drop area with a refined hover effect */
+        .drop-area {
+            border: 2px dashed #e5e5e5;
+            border-radius: 1rem;
+            background-color: #fafafa;
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+            position: relative;
+            padding: 4rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .drop-area:hover, .drop-area.active {
+            border-color: #7c3aed; /* Deep purple */
+            background-color: #f5f3ff; /* Soft purple */
+        }
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Responsive image gallery with elegant details */
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        .thumbnail-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .thumbnail-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .status-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+        .thumbnail-container:hover .status-overlay {
+            opacity: 1;
+        }
+        .status-overlay.visible {
+            opacity: 1;
+        }
+        
+        /* Buttons with a clean, premium look */
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-primary {
+            background-image: linear-gradient(135deg, #6d28d9 0%, #a855f7 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(109, 40, 217, 0.4);
+        }
+        .btn-secondary {
+            background-color: #f3f4f6;
+            color: #4b5563;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .btn-secondary:hover {
+            background-color: #e5e7eb;
+            transform: translateY(-1px);
+        }
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none !important;
+        }
+        .btn-secondary.icon-btn {
+            background-color: transparent;
+            box-shadow: none;
+            color: #71717a; /* gray-500 */
+        }
+        .btn-secondary.icon-btn:hover {
+            background-color: #e4e4e7; /* gray-200 */
+        }
+
+        /* Tooltip for a polished UX */
+        .tooltip {
+            position: relative;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: #334155;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            position: absolute;
+            z-index: 10;
+            bottom: 150%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .app-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-card">
+        <!-- Header Section -->
+        <header class="text-center">
+            <h1 class="text-4xl sm:text-5xl font-extrabold mb-2 leading-tight">Image Transformer</h1>
+            <p class="text-lg text-gray-500 max-w-lg mx-auto">
+                Client-side image compression and conversion, designed for speed and privacy.
+            </p>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <main class="grid lg:grid-cols-3 gap-8">
+            <!-- Controls & Upload Section -->
+            <section class="lg:col-span-1 space-y-6">
+                <!-- Drop Area -->
+                <div id="drop-area" class="drop-area">
+                    <input type="file" id="file-input" class="file-input" multiple accept="image/png, image/jpeg, image/webp">
+                    <i class="fa-solid fa-cloud-arrow-up text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 font-medium text-lg">
+                        <span class="text-purple-600 hover:underline transition-colors">Drag & Drop</span> files
+                    </p>
+                    <p class="text-sm text-gray-400">or click to browse</p>
+                </div>
+
+                <!-- Settings & Action Buttons -->
+                <div id="settings-container" class="space-y-6 hidden">
+                    <!-- Quality Slider -->
+                    <div>
+                        <label for="quality-slider" class="block text-sm font-medium text-gray-700 mb-2">Compression Quality</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="quality-slider" class="w-full h-2 rounded-lg appearance-none bg-gray-200 accent-purple-600" min="0.1" max="1.0" step="0.05" value="0.7">
+                            <span id="quality-value" class="text-gray-600 font-medium w-12 text-right">70%</span>
+                        </div>
+                    </div>
+
+                    <!-- Format Selector -->
+                    <div>
+                        <label for="file-format" class="block text-sm font-medium text-gray-700 mb-2">Output Format</label>
+                        <select id="file-format" class="w-full p-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600 transition-colors">
+                            <option value="original">Original</option>
+                            <option value="webp">WebP (Recommended)</option>
+                            <option value="jpeg">JPEG</option>
+                            <option value="png">PNG</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button id="compress-btn" class="w-full btn btn-primary flex-1">
+                            Start Compression
+                        </button>
+                        <button id="download-btn" class="w-full btn btn-secondary flex-1 hidden">
+                            Download All
+                        </button>
+                        <button id="reset-btn" class="w-full btn btn-secondary flex-1 hidden">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gallery & Status Section -->
+            <section class="lg:col-span-2 space-y-6">
+                <!-- Status & Progress -->
+                <div id="status-container" class="hidden">
+                    <p id="status-text" class="text-center text-sm font-medium text-gray-600 mb-2"></p>
+                    <div id="progress-bar-container" class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-purple-600 transition-all duration-300 ease-in-out"></div>
+                    </div>
+                </div>
+                
+                <!-- Image Gallery -->
+                <div id="image-gallery" class="image-gallery hidden"></div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="flex flex-col items-center justify-center text-center text-gray-400 p-8">
+                    <i class="fa-solid fa-images text-6xl mb-4"></i>
+                    <p class="text-lg font-medium">Your images will appear here</p>
+                    <p class="text-sm">They're ready for transformation.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Message Box (Modal) -->
+    <div id="message-box" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center space-y-6">
+            <p id="message-text" class="text-lg text-gray-800 font-medium"></p>
+            <button id="close-message" class="w-full btn btn-primary">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // DOM element references
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const imageGallery = document.getElementById('image-gallery');
+        const qualitySlider = document.getElementById('quality-slider');
+        const qualityValue = document.getElementById('quality-value');
+        const fileFormatSelect = document.getElementById('file-format');
+        const compressBtn = document.getElementById('compress-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const settingsContainer = document.getElementById('settings-container');
+        const statusContainer = document.getElementById('status-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        const emptyState = document.getElementById('empty-state');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const closeMessageBtn = document.getElementById('close-message');
+
+        // Application state
+        let filesToCompress = [];
+        let compressedFiles = [];
+        let isCompressing = false;
+        let originalSizes = new Map();
+
+        /**
+         * Shows a custom modal message box.
+         * @param {string} text The message to display.
+         */
+        function showMessage(text) {
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        }
+
+        // Event listeners
+        fileInput.addEventListener('change', handleFiles);
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('active');
+        });
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('active');
+        });
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('active');
+            handleFiles({ target: { files: e.dataTransfer.files } });
+        });
+        qualitySlider.addEventListener('input', (e) => {
+            qualityValue.textContent = `${Math.round(e.target.value * 100)}%`;
+        });
+        compressBtn.addEventListener('click', startCompression);
+        downloadBtn.addEventListener('click', downloadAll);
+        resetBtn.addEventListener('click', resetApp);
+        closeMessageBtn.addEventListener('click', () => {
+            messageBox.classList.remove('flex');
+            messageBox.classList.add('hidden');
+        });
+
+        /**
+         * Handles file selection from drag-and-drop or input.
+         * @param {Event} e The change event.
+         */
+        function handleFiles(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            resetApp(); // Clear existing state
+            
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    filesToCompress.push(file);
+                    originalSizes.set(file.name, file.size);
+                    displayFileThumbnail(file);
+                }
+            });
+
+            // Show UI controls if files were added
+            if (filesToCompress.length > 0) {
+                emptyState.classList.add('hidden');
+                imageGallery.classList.remove('hidden');
+                settingsContainer.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Displays a thumbnail for a given file.
+         * @param {File} file The file to display.
+         */
+        function displayFileThumbnail(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgContainer = document.createElement('div');
+                imgContainer.classList.add('thumbnail-container');
+                imgContainer.dataset.fileName = file.name;
+                
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = file.name;
+                
+                const statusOverlay = document.createElement('div');
+                statusOverlay.classList.add('status-overlay', 'visible');
+                statusOverlay.innerHTML = `
+                    <i class="fa-solid fa-hourglass-start text-xl text-gray-300 mb-2 animate-pulse"></i>
+                    <span class="font-medium text-xs sm:text-sm">Ready</span>
+                    <span class="text-xs text-gray-400 mt-1">${(file.size / 1024).toFixed(1)} KB</span>
+                `;
+
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(statusOverlay);
+                imageGallery.appendChild(imgContainer);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        /**
+         * Starts the image compression process.
+         */
+        async function startCompression() {
+            if (isCompressing || filesToCompress.length === 0) return;
+            isCompressing = true;
+            compressedFiles = [];
+            compressBtn.classList.add('btn-disabled');
+            compressBtn.textContent = 'Compressing...';
+            downloadBtn.classList.add('hidden');
+            resetBtn.classList.add('hidden');
+            statusContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            
+            const quality = parseFloat(qualitySlider.value);
+            const outputFormat = fileFormatSelect.value;
+            let completedCount = 0;
+            const totalFiles = filesToCompress.length;
+
+            const updateProgress = () => {
+                completedCount++;
+                const percentage = (completedCount / totalFiles) * 100;
+                progressBar.style.width = `${percentage}%`;
+                statusText.textContent = `Processing image ${completedCount} of ${totalFiles}...`;
+            };
+
+            const thumbnails = imageGallery.querySelectorAll('.thumbnail-container');
+
+            for (let i = 0; i < filesToCompress.length; i++) {
+                const file = filesToCompress[i];
+                const thumbnail = thumbnails[i];
+                const overlay = thumbnail.querySelector('.status-overlay');
+
+                try {
+                    overlay.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xl text-gray-300 mb-2"></i><span class="font-medium text-xs sm:text-sm">Compressing...</span>`;
+                    const compressedFile = await compressImage(file, quality, outputFormat);
+                    compressedFiles.push(compressedFile);
+                    updateProgress();
+                    const originalSize = originalSizes.get(file.name);
+                    const reduction = ((originalSize - compressedFile.size) / originalSize * 100).toFixed(1);
+                    overlay.innerHTML = `
+                        <i class="fa-solid fa-check-circle text-xl text-green-400 mb-2"></i>
+                        <span class="font-medium text-xs sm:text-sm">${(compressedFile.size / 1024).toFixed(1)} KB</span>
+                        <span class="text-xs text-gray-300 tooltip">-${reduction}%
+                            <span class="tooltip-text">Compression rate</span>
+                        </span>
+                    `;
+                    overlay.classList.add('bg-green-600', 'bg-opacity-50');
+                } catch (error) {
+                    console.error("Compression failed for", file.name, error);
+                    overlay.innerHTML = `
+                        <i class="fa-solid fa-times-circle text-xl text-red-400 mb-2"></i>
+                        <span class="font-medium text-xs sm:text-sm">Failed</span>
+                    `;
+                    overlay.classList.add('bg-red-600', 'bg-opacity-50');
+                }
+            }
+
+            isCompressing = false;
+            compressBtn.classList.remove('btn-disabled');
+            compressBtn.textContent = 'Start Compression';
+            statusText.textContent = `All ${totalFiles} images processed.`;
+            downloadBtn.classList.remove('hidden');
+            resetBtn.classList.remove('hidden');
+        }
+
+        /**
+         * Compresses a single image file using HTML Canvas.
+         * @param {File} file The image file.
+         * @param {number} quality The compression quality (0.1 - 1.0).
+         * @param {string} outputFormat The desired output format.
+         * @returns {Promise<File>} A promise that resolves with the compressed File object.
+         */
+        function compressImage(file, quality, outputFormat) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxDimension = 1920; 
+
+                        if (width > maxDimension || height > maxDimension) {
+                             if (width > height) {
+                                height = Math.round(height * (maxDimension / width));
+                                width = maxDimension;
+                            } else {
+                                width = Math.round(width * (maxDimension / height));
+                                height = maxDimension;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        let mimeType = file.type;
+                        if (outputFormat === 'jpeg') {
+                            mimeType = 'image/jpeg';
+                        } else if (outputFormat === 'webp') {
+                            mimeType = 'image/webp';
+                        } else if (outputFormat === 'png') {
+                             mimeType = 'image/png';
+                        }
+                        
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                const newFileName = file.name.split('.').slice(0, -1).join('.') + '.' + mimeType.split('/').pop();
+                                resolve(new File([blob], newFileName, { type: mimeType }));
+                            } else {
+                                reject(new Error('Canvas toBlob failed.'));
+                            }
+                        }, mimeType, quality);
+                    };
+                    img.onerror = reject;
+                    img.src = event.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        /**
+         * Generates a ZIP file of all compressed images and triggers a download.
+         */
+        function downloadAll() {
+            if (compressedFiles.length === 0) {
+                showMessage('No compressed images to download.');
+                return;
+            }
+
+            const zip = new JSZip();
+            compressedFiles.forEach(file => {
+                zip.file(file.name, file);
+            });
+
+            zip.generateAsync({ type: "blob" })
+                .then(function(content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = 'compressed_images.zip';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showMessage('Your images have been downloaded!');
+                })
+                .catch(error => {
+                    showMessage('Error creating ZIP file: ' + error.message);
+                    console.error('Error creating ZIP file:', error);
+                });
+        }
+
+        /**
+         * Resets the entire application state and UI.
+         */
+        function resetApp() {
+            filesToCompress = [];
+            compressedFiles = [];
+            originalSizes = new Map();
+            imageGallery.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            imageGallery.classList.add('hidden');
+            settingsContainer.classList.add('hidden');
+            statusContainer.classList.add('hidden');
+            progressBar.style.width = '0%';
+            statusText.textContent = '';
+            fileInput.value = '';
+        }
+
+    </script>
+</body>
+</html>
